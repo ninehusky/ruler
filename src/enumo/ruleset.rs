@@ -280,9 +280,14 @@ impl<L: SynthLanguage> Ruleset<L> {
             .collect();
 
         let compare = |cvec1: &CVec<L>, cvec2: &CVec<L>| -> bool {
+            // println!("{:?} and {:?}", cvec1, cvec2);
             for tup in cvec1.iter().zip(cvec2) {
                 match tup {
                     (Some(a), Some(b)) if a != b => return false,
+                    // @ninehusky: very strict notion of cvec equality. this is so we can
+                    //             explore conditions which "enable" equality.
+                    (Some(_), None) => return false,
+                    (None, Some(_)) => return false,
                     _ => (),
                 }
             }
@@ -314,7 +319,9 @@ impl<L: SynthLanguage> Ruleset<L> {
                     if compare(&class1.data.cvec, &class2.data.cvec) {
                         let (_, e1) = extract.find_best(class1.id);
                         let (_, e2) = extract.find_best(class2.id);
+                        // println!("comparing {} and {}", e1.pretty(80), e2.pretty(80));
                         candidates.add_from_recexprs(&e1, &e2);
+                    } else {
                     }
                 }
             }
