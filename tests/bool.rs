@@ -215,6 +215,8 @@ mod test {
             Limits::synthesis(),
             Limits::minimize(),
             false,
+            None,
+            false,
         );
         all_rules.extend(rules3);
 
@@ -227,6 +229,8 @@ mod test {
             Limits::synthesis(),
             Limits::minimize(),
             false,
+            None,
+            false,
         );
         all_rules.extend(rules4);
 
@@ -238,6 +242,8 @@ mod test {
             all_rules.clone(),
             Limits::synthesis(),
             Limits::minimize(),
+            false,
+            None,
             false,
         );
         all_rules.extend(rules5);
@@ -318,11 +324,26 @@ mod test {
             node: 1000000,
             match_: 200_000,
         };
-        let three: Ruleset<Bool> =
-            run_workload(iter_bool(3), Ruleset::default(), limits, limits, false);
+        let three: Ruleset<Bool> = run_workload(
+            iter_bool(3),
+            Ruleset::default(),
+            limits,
+            limits,
+            false,
+            None,
+            false,
+        );
         three.to_file("three.txt");
 
-        let four = run_workload(iter_bool(4), Ruleset::default(), limits, limits, false);
+        let four = run_workload(
+            iter_bool(4),
+            Ruleset::default(),
+            limits,
+            limits,
+            false,
+            None,
+            false,
+        );
         four.to_file("four.txt");
 
         let (can, cannot) = three.derive(

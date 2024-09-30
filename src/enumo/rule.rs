@@ -4,6 +4,14 @@ use std::sync::Arc;
 
 use crate::*;
 
+pub struct ConditionalRule<L: SynthLanguage> {
+    pub name: Arc<str>,
+    pub lhs: Pattern<L>,
+    pub rhs: Pattern<L>,
+    pub condition: Pattern<L>,
+    pub rewrite: Rewrite<L, SynthAnalysis>,
+}
+
 /// A Rewrite rule
 #[derive(Clone, Debug)]
 pub struct Rule<L: SynthLanguage> {

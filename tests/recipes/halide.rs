@@ -72,6 +72,8 @@ pub fn halide_rules() -> Ruleset<Pred> {
         Limits::synthesis(),
         Limits::minimize(),
         true,
+        None,
+        false,
     );
     all_rules.extend(new);
     let nested_bops_full = Workload::new(&["(bop e e)", "v"])
@@ -93,6 +95,8 @@ pub fn halide_rules() -> Ruleset<Pred> {
         Limits::synthesis(),
         Limits::minimize(),
         true,
+        None,
+        false,
     );
     all_rules.extend(new.clone());
 
@@ -120,6 +124,8 @@ pub fn halide_rules() -> Ruleset<Pred> {
             match_: 100_000,
         },
         true,
+        None,
+        false,
     );
     all_rules.extend(new);
 
@@ -134,6 +140,8 @@ pub fn halide_rules() -> Ruleset<Pred> {
             match_: 100_000,
         },
         true,
+        None,
+        false,
     );
     all_rules.extend(new);
 

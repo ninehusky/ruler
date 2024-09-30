@@ -34,6 +34,8 @@ pub fn bool_rules() -> Ruleset<Bool> {
         Limits::synthesis(),
         Limits::minimize(),
         true,
+        None,
+        false,
     );
     all.extend(r7);
 

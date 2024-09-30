@@ -1,8 +1,10 @@
 use std::time::Instant;
 
+use egg::EGraph;
+
 use crate::{
     enumo::{Filter, Metric, Ruleset, Scheduler, Workload},
-    Limits, SynthLanguage,
+    Limits, SynthAnalysis, SynthLanguage,
 };
 
 /// Iterate a grammar (represented as a workload) up to a certain size metric
@@ -33,6 +35,8 @@ fn run_workload_internal<L: SynthLanguage>(
     minimize_limits: Limits,
     fast_match: bool,
     allow_empty: bool,
+    predicate_workload: Option<Workload>,
+    run_conditional: bool,
 ) -> Ruleset<L> {
     let t = Instant::now();
 
@@ -41,6 +45,9 @@ fn run_workload_internal<L: SynthLanguage>(
 
     let mut candidates = if fast_match {
         Ruleset::fast_cvec_match(&compressed)
+    } else if run_conditional {
+        let predicate_egraph = predicate_workload.unwrap().to_egraph::<L>();
+        Ruleset::conditional_cvec_match(&compressed, &predicate_egraph)
     } else {
         Ruleset::cvec_match(&compressed)
     };
@@ -77,6 +84,8 @@ pub fn run_workload<L: SynthLanguage>(
     prior_limits: Limits,
     minimize_limits: Limits,
     fast_match: bool,
+    predicate_workload: Option<Workload>,
+    run_conditional: bool,
 ) -> Ruleset<L> {
     run_workload_internal(
         workload,
@@ -85,6 +94,8 @@ pub fn run_workload<L: SynthLanguage>(
         minimize_limits,
         fast_match,
         false,
+        predicate_workload,
+        run_conditional,
     )
 }
 
@@ -195,6 +206,8 @@ pub fn recursive_rules<L: SynthLanguage>(
             Limits::minimize(),
             true,
             allow_empty,
+            None,
+            false,
         );
         let mut all = new;
         all.extend(rec);

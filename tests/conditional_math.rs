@@ -8,6 +8,8 @@ pub enum Math {
     "-" = Sub([Id; 2]),
     "*" = Mul([Id; 2]),
     "/" = Div([Id; 2]),
+    "=" = Eq([Id; 2]),
+    "!=" = Neq([Id; 2]),
     Num(i32),
     Var(egg::Symbol),
 }
@@ -25,6 +27,18 @@ impl SynthLanguage for Math {
             Math::Sub([x, y]) => map!(get_cvec, x, y => x.checked_sub(*y)),
             Math::Mul([x, y]) => map!(get_cvec, x, y => x.checked_mul(*y)),
             Math::Div([x, y]) => map!(get_cvec, x, y => x.checked_div(*y)),
+            Math::Eq([x, y]) => map!(get_cvec, x, y =>
+                if x == y {
+                    Some(1)
+            } else {
+                None
+            }),
+            Math::Neq([x, y]) => map!(get_cvec, x, y =>
+                if x != y {
+                    Some(1)
+            } else {
+                None
+            }),
             Math::Num(n) => vec![Some(*n); cvec_len],
             Math::Var(_) => vec![],
         }
@@ -59,6 +73,26 @@ impl SynthLanguage for Math {
             },
             Math::Div([x, y]) => match (get_const(x), get_const(y)) {
                 (Some(x), Some(y)) => x.checked_div(y),
+                _ => None,
+            },
+            Math::Eq([x, y]) => match (get_const(x), get_const(y)) {
+                (Some(x), Some(y)) => {
+                    if x == y {
+                        Some(1)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            Math::Neq([x, y]) => match (get_const(x), get_const(y)) {
+                (Some(x), Some(y)) => {
+                    if x != y {
+                        Some(1)
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             },
         }
@@ -118,7 +152,10 @@ impl SynthLanguage for Math {
 
 #[test]
 fn run_conditional_math_test() {
-    let mut ruleset: Ruleset<Math> = Ruleset::default();
+    let ruleset: Ruleset<Math> = Ruleset::default();
+
+    let predicate_terms =
+        Workload::new(["(!= expr expr))"]).plug("expr", &Workload::new(["a", "b", "0", "1"]));
 
     let terms = Workload::new([
         "(+ expr expr)",
@@ -134,6 +171,8 @@ fn run_conditional_math_test() {
         Limits::synthesis(),
         Limits::minimize(),
         false,
+        Some(predicate_terms),
+        true,
     );
 
     println!("new rules:");

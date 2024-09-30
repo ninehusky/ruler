@@ -28,6 +28,8 @@ pub fn replicate_ruler1_recipe() -> Ruleset<Math> {
         Limits::synthesis(),
         Limits::minimize(),
         false,
+        None,
+        false,
     );
     rules.extend(layer1_rules);
 
@@ -50,6 +52,8 @@ pub fn replicate_ruler1_recipe() -> Ruleset<Math> {
         Limits::synthesis(),
         Limits::minimize(),
         true,
+        None,
+        false,
     );
     rules.extend(layer2_rules);
 

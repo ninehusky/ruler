@@ -866,6 +866,8 @@ pub mod test {
             Limits::synthesis(),
             Limits::minimize(),
             false,
+            None,
+            false,
         );
         all_rules.extend(starting_rules);
 
@@ -875,6 +877,8 @@ pub mod test {
             all_rules.clone(),
             Limits::synthesis(),
             Limits::minimize(),
+            false,
+            None,
             false,
         );
         all_rules.extend(basic_if_rules);
@@ -890,6 +894,8 @@ pub mod test {
             all_rules.clone(),
             Limits::synthesis(),
             Limits::minimize(),
+            false,
+            None,
             false,
         );
         guarded_rules.to_file("guard.rules");
@@ -915,7 +921,7 @@ pub mod test {
         };
         let test = Workload::new(&["(if a b b)", "b"]);
         let test_rules: Ruleset<Math> =
-            run_workload(test, Ruleset::default(), limits, limits, false);
+            run_workload(test, Ruleset::default(), limits, limits, false, None, false);
         assert_eq!(test_rules.len(), 1);
     }
 }

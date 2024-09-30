@@ -264,10 +264,13 @@ impl<L: SynthLanguage> Ruleset<L> {
 
     /// Find candidates by CVec matching
     /// Pairs of e-classes with equivalent CVecs are rule candidates.
-    pub fn cvec_match(egraph: &EGraph<L, SynthAnalysis>) -> Self {
+    pub fn conditional_cvec_match(
+        egraph: &EGraph<L, SynthAnalysis>,
+        predicate_egraph: &EGraph<L, SynthAnalysis>,
+    ) -> Self {
         let time_start = std::time::Instant::now();
         // cvecs [𝑎1, . . . , 𝑎𝑛] and [𝑏1, . . . , 𝑏𝑛] match iff:
-        // ∀𝑖. 𝑎𝑖 = 𝑏𝑖 ∨ 𝑎𝑖 = null ∨ 𝑏𝑖 = null and ∃𝑖. 𝑎𝑖 = 𝑏𝑖 ∧ 𝑎𝑖 ≠ null ∧ 𝑏𝑖 ≠ null
+        // ∀𝑖. 𝑎𝑖 = 𝑏𝑖
 
         println!(
             "starting cvec match with {} eclasses",
@@ -280,7 +283,6 @@ impl<L: SynthLanguage> Ruleset<L> {
             .collect();
 
         let compare = |cvec1: &CVec<L>, cvec2: &CVec<L>| -> bool {
-            // println!("{:?} and {:?}", cvec1, cvec2);
             for tup in cvec1.iter().zip(cvec2) {
                 match tup {
                     (Some(a), Some(b)) if a != b => return false,
@@ -319,7 +321,114 @@ impl<L: SynthLanguage> Ruleset<L> {
                     if compare(&class1.data.cvec, &class2.data.cvec) {
                         let (_, e1) = extract.find_best(class1.id);
                         let (_, e2) = extract.find_best(class2.id);
-                        // println!("comparing {} and {}", e1.pretty(80), e2.pretty(80));
+                        candidates.add_from_recexprs(&e1, &e2);
+                    } else {
+                        // now, we need to check if the predicate egraph has some term
+                        // where its cvec is true only where e1, e2 differ.
+                        for predicate_class in predicate_egraph.classes() {
+                            let mut is_good = true;
+                            let predicate_cvec = &predicate_class.data.cvec;
+                            // if the predicate is always None, then skip.
+                            if predicate_cvec.iter().all(|v| v.is_none()) {
+                                continue;
+                            }
+                            for ((e1_cvec_el, e2_cvec_el), pred_cvec_el) in class1
+                                .data
+                                .cvec
+                                .iter()
+                                .zip(class2.data.cvec.iter())
+                                .zip(predicate_cvec.iter())
+                            {
+                                // we want pred <--> (lhs ~> rhs).
+                                if e1_cvec_el == e2_cvec_el && pred_cvec_el.is_none() {
+                                    // no pred, but still lhs ~> rhs. therefore,
+                                    // pred --|-> (lhs ~> rhs).
+                                    is_good = false;
+                                    break;
+                                } else if e1_cvec_el != e2_cvec_el && pred_cvec_el.is_some() {
+                                    // this means the equality doesn't hold under the predicate.
+                                    // that is, (lhs !~> rhs) --|--> !pred.
+                                    is_good = false;
+                                    break;
+                                }
+                            }
+                            if is_good {
+                                let pred_extract = Extractor::new(predicate_egraph, AstSize);
+                                let (_, e1) = extract.find_best(class1.id);
+                                let (_, e2) = extract.find_best(class2.id);
+                                let (_, pred) = pred_extract.find_best(predicate_class.id);
+                                println!("if {} then {} ~> {}", pred, e1, e2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        println!(
+            "cvec match finished in {} ms",
+            time_start.elapsed().as_millis()
+        );
+
+        candidates
+    }
+
+    /// Find candidates by CVec matching
+    /// Pairs of e-classes with equivalent CVecs are rule candidates.
+    pub fn cvec_match(egraph: &EGraph<L, SynthAnalysis>) -> Self {
+        let time_start = std::time::Instant::now();
+        // cvecs [𝑎1, . . . , 𝑎𝑛] and [𝑏1, . . . , 𝑏𝑛] match iff:
+        // ∀𝑖. 𝑎𝑖 = 𝑏𝑖
+
+        println!(
+            "starting cvec match with {} eclasses",
+            egraph.number_of_classes()
+        );
+
+        let not_all_none: Vec<&EClass<L, Signature<L>>> = egraph
+            .classes()
+            .filter(|x| x.data.cvec.iter().any(|v| v.is_some()))
+            .collect();
+
+        let compare = |cvec1: &CVec<L>, cvec2: &CVec<L>| -> bool {
+            for tup in cvec1.iter().zip(cvec2) {
+                match tup {
+                    (Some(a), Some(b)) if a != b => return false,
+                    // @ninehusky: very strict notion of cvec equality. this is so we can
+                    //             explore conditions which "enable" equality.
+                    (Some(_), None) => return false,
+                    (None, Some(_)) => return false,
+                    _ => (),
+                }
+            }
+            true
+        };
+        let mut candidates = Ruleset::default();
+        let extract = Extractor::new(egraph, AstSize);
+        let mut by_first: IndexMap<Option<L::Constant>, Vec<Id>> = IndexMap::default();
+        for class in &not_all_none {
+            by_first
+                .entry(class.data.cvec[0].clone())
+                .or_insert_with(Vec::new)
+                .push(class.id);
+        }
+
+        let empty = vec![];
+        let first_none = by_first.get(&None).cloned().unwrap_or(empty);
+
+        for (value, classes) in by_first {
+            let mut all_classes = classes.clone();
+            if value.is_some() {
+                all_classes.extend(first_none.clone());
+            }
+
+            for i in 0..all_classes.len() {
+                for j in i + 1..all_classes.len() {
+                    let class1 = &egraph[all_classes[i]];
+                    let class2 = &egraph[all_classes[j]];
+                    if compare(&class1.data.cvec, &class2.data.cvec) {
+                        let (_, e1) = extract.find_best(class1.id);
+                        let (_, e2) = extract.find_best(class2.id);
                         candidates.add_from_recexprs(&e1, &e2);
                     } else {
                     }
